@@ -155,3 +155,16 @@ jobs:
                                             --source-tag "$GITHUB_REF_NAME" \
                                             "$fn"
           done <<<"$checksums"
+
+  publish:
+    name: Publish release
+    needs:
+      - verification
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
