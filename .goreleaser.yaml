@@ -3,6 +3,10 @@
 project_name: frizbee
 version: 2
 # This section defines the build matrix.
+
+release:
+  draft: true
+
 builds:
   - env:
       - GO111MODULE=on
