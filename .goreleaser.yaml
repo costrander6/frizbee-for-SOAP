@@ -4,6 +4,9 @@ project_name: frizbee
 version: 2
 # This section defines the build matrix.
 
+release:
+  draft: true
+
 builds:
   - env:
       - GO111MODULE=on
@@ -48,7 +51,6 @@ release:
   github:
     owner: costrander6
     name: frizbee-for-SOAP
-  draft: true
 # This section defines how and which artifacts we want to sign for the release.
 signs:
   - cmd: cosign
