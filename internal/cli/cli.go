@@ -59,6 +59,7 @@ type Helper struct {
 	ErrOnModified bool
 	Regex         string
 	Cmd           *cobra.Command
+	OutputFormat  string
 }
 
 type versionInfo struct {
@@ -136,6 +137,10 @@ func NewHelper(cmd *cobra.Command) (*Helper, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get regex flag: %w", err)
 	}
+	outputFormat, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get output flag: %w", err)
+	}
 
 	return &Helper{
 		Cmd:           cmd,
@@ -143,6 +148,7 @@ func NewHelper(cmd *cobra.Command) (*Helper, error) {
 		ErrOnModified: errOnModified,
 		Quiet:         quiet,
 		Regex:         regex,
+		OutputFormat:  outputFormat,
 	}, nil
 }
 

@@ -54,9 +54,10 @@ type ListResult struct {
 
 // Replacer is an object with methods to replace references with digests
 type Replacer struct {
-	parser interfaces.Parser
-	rest   interfaces.REST
-	cfg    config.Config
+	parser     interfaces.Parser
+	rest       interfaces.REST
+	cfg        config.Config
+	jsonOutput bool
 }
 
 // NewGitHubActionsReplacer creates a new replacer for GitHub actions
@@ -105,6 +106,11 @@ func (r *Replacer) WithUserRegex(regex string) *Replacer {
 // WithCacheDisabled disables caching
 func (r *Replacer) WithCacheDisabled() *Replacer {
 	r.parser.SetCache(nil)
+	return r
+}
+
+func (r *Replacer) WithJsonOutput() *Replacer {
+	r.jsonOutput = true
 	return r
 }
 
