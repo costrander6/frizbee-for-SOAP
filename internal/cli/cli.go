@@ -59,6 +59,7 @@ type Helper struct {
 	ErrOnModified bool
 	Regex         string
 	Cmd           *cobra.Command
+	OutputFormat  string
 }
 
 type versionInfo struct {
@@ -136,6 +137,10 @@ func NewHelper(cmd *cobra.Command) (*Helper, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get regex flag: %w", err)
 	}
+	outputFormat, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get output flag: %w", err)
+	}
 
 	return &Helper{
 		Cmd:           cmd,
@@ -143,6 +148,7 @@ func NewHelper(cmd *cobra.Command) (*Helper, error) {
 		ErrOnModified: errOnModified,
 		Quiet:         quiet,
 		Regex:         regex,
+		OutputFormat:  outputFormat,
 	}, nil
 }
 
@@ -190,7 +196,7 @@ func (r *Helper) ProcessOutput(path string, processed []string, modified map[str
 	bfs := osfs.New(basedir, osfs.WithBoundOS())
 	var out io.Writer
 	for _, path := range processed {
-		if !r.Quiet {
+		if !r.Quiet && !strings.EqualFold(r.OutputFormat, "json") {
 			r.Logf("Processed: %s\n", path)
 		}
 	}
@@ -213,7 +219,7 @@ func (r *Helper) ProcessOutput(path string, processed []string, modified map[str
 
 			out = f
 		}
-		if !r.Quiet {
+		if !r.Quiet && !strings.EqualFold(r.OutputFormat, "json") {
 			r.Logf("Modified: %s\n", path)
 		}
 		_, err := fmt.Fprintf(out, "%s", content)

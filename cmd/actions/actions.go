@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -53,7 +54,7 @@ for the given directory. Supports both directories and single references.
 	}
 
 	// flags
-	cli.DeclareFrizbeeFlags(cmd, false)
+	cli.DeclareFrizbeeFlags(cmd, true)
 
 	// sub-commands
 	cmd.AddCommand(CmdList())
@@ -85,6 +86,10 @@ func replaceCmd(cmd *cobra.Command, args []string) error {
 	r := replacer.NewGitHubActionsReplacer(cfg).
 		WithUserRegex(cliFlags.Regex).
 		WithGitHubClientFromToken(os.Getenv(cli.GitHubTokenEnvKey))
+
+	if strings.EqualFold(cliFlags.OutputFormat, "json") {
+		r = r.WithJsonOutput()
+	}
 
 	if cli.IsPath(pathOrRef) {
 		dir := filepath.Clean(pathOrRef)
