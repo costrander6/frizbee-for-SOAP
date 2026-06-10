@@ -219,9 +219,17 @@ func (r *Helper) ProcessOutput(path string, processed []string, modified map[str
 
 			out = f
 		}
-		if !r.Quiet && !strings.EqualFold(r.OutputFormat, "json") {
+
+		isJson := strings.EqualFold(r.OutputFormat, "json")
+
+		if !r.Quiet && !isJson {
 			r.Logf("Modified: %s\n", path)
 		}
+
+		if isJson {
+			content += "\n"
+		}
+
 		_, err := fmt.Fprintf(out, "%s", content)
 		if err != nil {
 			return fmt.Errorf("failed to write to file %s: %w", path, err)
