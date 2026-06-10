@@ -110,6 +110,7 @@ func (r *Replacer) WithCacheDisabled() *Replacer {
 	return r
 }
 
+// WithJsonOutput enables JSON output
 func (r *Replacer) WithJsonOutput() *Replacer {
 	r.jsonOutput = true
 	return r
@@ -170,7 +171,7 @@ func parsePathInFS(
 	cfg config.Config,
 	bfs billy.Filesystem,
 	base string,
-	json bool,
+	jsonOutput bool,
 ) (*ReplaceResult, error) {
 	var eg errgroup.Group
 	var mu sync.Mutex
@@ -193,7 +194,7 @@ func parsePathInFS(
 			var modified bool
 			var updatedFile string
 
-			if json {
+			if jsonOutput {
 				modified, updatedFile, err = parseAndListReplacementsInFile(ctx, file, parser, rest, cfg, path)
 			} else {
 				// Parse the content of the file and update the matching references
@@ -409,7 +410,10 @@ func parseAndListReplacementsInFile(
 		if newLine != line {
 			modified = true
 			result.Findings = append(result.Findings, finding{
-				Old: strings.TrimSpace(line), New: strings.TrimSpace(newLine), Line: lineNum, File: filename,
+				Old:  strings.TrimSpace(line),
+				New:  strings.TrimSpace(newLine),
+				Line: lineNum,
+				File: filename,
 			})
 		}
 	}
