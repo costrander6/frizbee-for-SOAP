@@ -19,6 +19,7 @@ package replacer
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -121,12 +122,12 @@ func (r *Replacer) ParseString(ctx context.Context, entityRef string) (*interfac
 
 // ParsePath parses and replaces all entity references in the provided directory
 func (r *Replacer) ParsePath(ctx context.Context, dir string) (*ReplaceResult, error) {
-	return parsePathInFS(ctx, r.parser, r.rest, r.cfg, osfs.New(filepath.Dir(dir), osfs.WithBoundOS()), filepath.Base(dir))
+	return parsePathInFS(ctx, r.parser, r.rest, r.cfg, osfs.New(filepath.Dir(dir), osfs.WithBoundOS()), filepath.Base(dir), r.jsonOutput)
 }
 
 // ParsePathInFS parses and replaces all entity references in the provided file system
 func (r *Replacer) ParsePathInFS(ctx context.Context, bfs billy.Filesystem, base string) (*ReplaceResult, error) {
-	return parsePathInFS(ctx, r.parser, r.rest, r.cfg, bfs, base)
+	return parsePathInFS(ctx, r.parser, r.rest, r.cfg, bfs, base, r.jsonOutput)
 }
 
 // ParseFile parses and replaces all entity references in the provided file
@@ -169,6 +170,7 @@ func parsePathInFS(
 	cfg config.Config,
 	bfs billy.Filesystem,
 	base string,
+	json bool,
 ) (*ReplaceResult, error) {
 	var eg errgroup.Group
 	var mu sync.Mutex
@@ -188,8 +190,16 @@ func parsePathInFS(
 			// nolint:errcheck // ignore error
 			defer file.Close()
 
-			// Parse the content of the file and update the matching references
-			modified, updatedFile, err := parseAndReplaceReferencesInFile(ctx, file, parser, rest, cfg)
+			var modified bool
+			var updatedFile string
+
+			if json {
+				modified, updatedFile, err = parseAndListReplacementsInFile(ctx, file, parser, rest, cfg, path)
+			} else {
+				// Parse the content of the file and update the matching references
+				modified, updatedFile, err = parseAndReplaceReferencesInFile(ctx, file, parser, rest, cfg)
+			}
+
 			if err != nil {
 				return fmt.Errorf("failed to modify references in %s: %w", path, err)
 			}
@@ -336,6 +346,83 @@ func parseAndReplaceReferencesInFile(
 
 	// Return the workflow content
 	return modified, contentBuilder.String(), nil
+}
+
+type results struct {
+	Findings []finding `json:"findings"`
+}
+
+type finding struct {
+	Old  string `json:"old"`
+	New  string `json:"new"`
+	Line int    `json:"line"`
+	File string `json:"file"`
+}
+
+func parseAndListReplacementsInFile(
+	ctx context.Context,
+	f io.Reader,
+	parser interfaces.Parser,
+	rest interfaces.REST,
+	cfg config.Config,
+	filename string,
+) (bool, string, error) {
+	var result results
+	var ret *interfaces.EntityRef
+	var lineNum int
+
+	modified := false
+
+	// Compile the regular expression
+	re, err := regexp.Compile(parser.GetRegex())
+	if err != nil {
+		return false, "", err
+	}
+
+	// Read the file line by line
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		lineNum++
+
+		// Skip commented lines
+		if strings.HasPrefix(strings.TrimLeft(line, " \t\n\r"), "#") {
+			continue
+		}
+
+		// See if we can match an entity reference in the line
+		newLine := re.ReplaceAllStringFunc(line, func(matchedLine string) string {
+			// Modify the reference in the line
+			ret, err = parser.Replace(ctx, matchedLine, rest, cfg)
+			if err != nil {
+				// Return the original line as we don't want to update it in case something errored out
+				return matchedLine
+			}
+			// Construct the new line, comments in dockerfiles are handled differently than yml files
+			if strings.Contains(matchedLine, "FROM") {
+				return fmt.Sprintf("%s%s:%s@%s", ret.Prefix, ret.Name, ret.Tag, ret.Ref)
+			}
+			return fmt.Sprintf("%s%s@%s # %s", ret.Prefix, ret.Name, ret.Ref, ret.Tag)
+		})
+
+		// Check if the line was modified and set the modified flag to true if it was
+		if newLine != line {
+			modified = true
+			result.Findings = append(result.Findings, finding{
+				Old: strings.TrimSpace(line), New: strings.TrimSpace(newLine), Line: lineNum, File: filename,
+			})
+		}
+	}
+
+	// Check for errors during the scan
+	if err := scanner.Err(); err != nil {
+		return false, "", err
+	}
+
+	resultMarshal, _ := json.Marshal(result)
+
+	// Return the workflow content
+	return modified, string(resultMarshal), nil
 }
 
 // listReferencesInFile takes the given file reader and returns a map of all references, action or images it finds
