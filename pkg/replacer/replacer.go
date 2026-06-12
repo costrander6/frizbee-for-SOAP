@@ -123,12 +123,14 @@ func (r *Replacer) ParseString(ctx context.Context, entityRef string) (*interfac
 
 // ParsePath parses and replaces all entity references in the provided directory
 func (r *Replacer) ParsePath(ctx context.Context, dir string) (*ReplaceResult, error) {
-	return parsePathInFS(ctx, r.parser, r.rest, r.cfg, osfs.New(filepath.Dir(dir), osfs.WithBoundOS()), filepath.Base(dir), r.jsonOutput)
+	return parsePathInFS(
+		ctx, r.parser, r.rest, r.cfg, osfs.New(filepath.Dir(dir), osfs.WithBoundOS()), filepath.Base(dir), r.jsonOutput, dir,
+	)
 }
 
 // ParsePathInFS parses and replaces all entity references in the provided file system
 func (r *Replacer) ParsePathInFS(ctx context.Context, bfs billy.Filesystem, base string) (*ReplaceResult, error) {
-	return parsePathInFS(ctx, r.parser, r.rest, r.cfg, bfs, base, r.jsonOutput)
+	return parsePathInFS(ctx, r.parser, r.rest, r.cfg, bfs, base, r.jsonOutput, base)
 }
 
 // ParseFile parses and replaces all entity references in the provided file
@@ -172,6 +174,7 @@ func parsePathInFS(
 	bfs billy.Filesystem,
 	base string,
 	jsonOutput bool,
+	dir string,
 ) (*ReplaceResult, error) {
 	var eg errgroup.Group
 	var mu sync.Mutex
@@ -195,7 +198,9 @@ func parsePathInFS(
 			var updatedFile string
 
 			if jsonOutput {
-				modified, updatedFile, err = parseAndListReplacementsInFile(ctx, file, parser, rest, cfg, path)
+				modified, updatedFile, err = parseAndListReplacementsInFile(
+					ctx, file, parser, rest, cfg, filepath.Join(dir, filepath.Base(path)),
+				)
 			} else {
 				// Parse the content of the file and update the matching references
 				modified, updatedFile, err = parseAndReplaceReferencesInFile(ctx, file, parser, rest, cfg)
