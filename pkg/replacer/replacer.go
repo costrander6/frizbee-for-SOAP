@@ -123,7 +123,9 @@ func (r *Replacer) ParseString(ctx context.Context, entityRef string) (*interfac
 
 // ParsePath parses and replaces all entity references in the provided directory
 func (r *Replacer) ParsePath(ctx context.Context, dir string) (*ReplaceResult, error) {
-	return parsePathInFS(ctx, r.parser, r.rest, r.cfg, osfs.New(filepath.Dir(dir), osfs.WithBoundOS()), filepath.Base(dir), r.jsonOutput, dir)
+	return parsePathInFS(
+		ctx, r.parser, r.rest, r.cfg, osfs.New(filepath.Dir(dir), osfs.WithBoundOS()), filepath.Base(dir), r.jsonOutput, dir,
+	)
 }
 
 // ParsePathInFS parses and replaces all entity references in the provided file system
